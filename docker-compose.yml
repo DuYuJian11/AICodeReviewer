@@ -1,0 +1,84 @@
+services:
+  # ============================================================
+  # MySQL 8.0.37 — 持久化存储
+  # ============================================================
+  mysql:
+    image: mysql:8.0.37
+    container_name: ai-review-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: ai_code_review
+      MYSQL_USER: acore
+      MYSQL_PASSWORD: acore123
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    command:
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-time-zone=+8:00
+      --max_connections=200
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # Redis 7.2 — 缓存 / 会话管理
+  # ============================================================
+  redis:
+    image: redis:7.2
+    container_name: ai-review-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command:
+      redis-server
+      --requirepass redis123
+      --appendonly yes
+      --appendfsync everysec
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "redis123", "ping" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # RabbitMQ 3.13 — 消息队列 / 任务分发（带管理插件）
+  # ============================================================
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: ai-review-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"      # AMQP 协议端口
+      - "15672:15672"    # 管理控制台 Web UI
+    environment:
+      RABBITMQ_DEFAULT_USER: acore
+      RABBITMQ_DEFAULT_PASS: acore123
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "check_port_connectivity" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+# ============================================================
+# 持久化数据卷
+# ============================================================
+volumes:
+  mysql-data:
+    driver: local
+  redis-data:
+    driver: local
+  rabbitmq-data:
+    driver: local
