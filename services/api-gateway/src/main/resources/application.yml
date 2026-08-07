@@ -1,0 +1,102 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      # 全局默认过滤器
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin
+
+      routes:
+        # ==================== 用户服务 ====================
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=1
+
+        # ==================== 仓库服务 ====================
+        - id: repo-service
+          uri: lb://repo-service
+          predicates:
+            - Path=/api/repo/**
+          filters:
+            - StripPrefix=1
+
+        # ==================== 扫描服务 ====================
+        - id: scanner-service
+          uri: lb://scanner-service
+          predicates:
+            - Path=/api/scanner/**
+          filters:
+            - StripPrefix=1
+
+        # ==================== AI 审查服务 ====================
+        - id: ai-review-service
+          uri: lb://ai-review-service
+          predicates:
+            - Path=/api/ai-review/**
+          filters:
+            - StripPrefix=1
+
+        # ==================== 报告服务 ====================
+        - id: report-service
+          uri: lb://report-service
+          predicates:
+            - Path=/api/report/**
+          filters:
+            - StripPrefix=1
+
+        # ==================== 通知服务 ====================
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notification/**
+          filters:
+            - StripPrefix=1
+
+      # 全局跨域配置
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+
+# Eureka 客户端配置
+eureka:
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+# JWT 配置（用于网关鉴权）
+jwt:
+  secret: acore-ai-review-platform-jwt-secret-key-2024
+  # 白名单路径 — 不需要登录即可访问
+  whitelist:
+    - /api/user/login
+    - /api/user/register
+    - /api/user/refresh
+    - /actuator/health

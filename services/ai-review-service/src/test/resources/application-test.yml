@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+eureka:
+  client:
+    enabled: false
+
+ai:
+  provider: deepseek
+  api-key: sk-test-key
+  base-url: https://api.deepseek.com
+  model: deepseek-chat
+  max-tokens: 4096
+  timeout-seconds: 120
