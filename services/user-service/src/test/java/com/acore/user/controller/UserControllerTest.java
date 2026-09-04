@@ -1,7 +1,11 @@
 package com.acore.user.controller;
 
 import com.acore.shared.dto.Result;
-import com.acore.user.dto.*;
+import com.acore.user.dto.LoginReq;
+import com.acore.user.dto.LoginResp;
+import com.acore.user.dto.RegisterReq;
+import com.acore.user.dto.UserUpdateReq;
+import com.acore.user.dto.UserVO;
 import com.acore.user.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

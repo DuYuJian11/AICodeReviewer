@@ -10,7 +10,7 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
  * @author acore
  */
 @EnableDiscoveryClient
-@SpringBootApplication(scanBasePackages = {"com.acore.gateway", "com.acore.shared"})
+@SpringBootApplication(scanBasePackages = {"com.acore.gateway"})
 public class ApiGatewayApplication {
 
     public static void main(String[] args) {
