@@ -1,12 +1,24 @@
 package com.acore.user.controller;
 
 import com.acore.shared.dto.Result;
-import com.acore.user.dto.*;
+import com.acore.user.dto.LoginReq;
+import com.acore.user.dto.LoginResp;
+import com.acore.user.dto.RegisterReq;
+import com.acore.user.dto.UserUpdateReq;
+import com.acore.user.dto.UserVO;
 import com.acore.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 用户控制器

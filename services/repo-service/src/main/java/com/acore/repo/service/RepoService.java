@@ -1,6 +1,10 @@
 package com.acore.repo.service;
 
-import com.acore.repo.dto.*;
+import com.acore.repo.dto.OAuthCallbackReq;
+import com.acore.repo.dto.PullRequestVO;
+import com.acore.repo.dto.RepoAddReq;
+import com.acore.repo.dto.RepoUpdateReq;
+import com.acore.repo.dto.RepoVO;
 import com.acore.repo.entity.PullRequestEntity;
 
 import java.util.List;
