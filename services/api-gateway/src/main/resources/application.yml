@@ -93,7 +93,7 @@ management:
 
 # JWT 配置（用于网关鉴权）
 jwt:
-  secret: acore-ai-review-platform-jwt-secret-key-2024
+  secret: ${JWT_SECRET:acore-ai-review-platform-jwt-secret-key-2024}
   # 白名单路径 — 不需要登录即可访问
   whitelist:
     - /api/user/login

@@ -76,6 +76,6 @@ public class UserController {
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         userService.delete(id);
-        return Result.success("删除成功");
+        return Result.success("删除成功", null);
     }
 }

@@ -43,9 +43,6 @@ mybatis-plus:
   global-config:
     db-config:
       id-type: auto
-      logic-delete-field: deleted
-      logic-delete-value: 1
-      logic-not-delete-value: 0
 
 # Eureka
 eureka:
@@ -58,7 +55,7 @@ eureka:
 
 # JWT
 jwt:
-  secret: acore-ai-review-platform-jwt-secret-key-2024
+  secret: ${JWT_SECRET:acore-ai-review-platform-jwt-secret-key-2024}
   expiration: 86400000
 
 # Actuator

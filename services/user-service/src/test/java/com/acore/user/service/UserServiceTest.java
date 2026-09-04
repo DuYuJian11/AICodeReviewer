@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.bean.MockBean;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.Optional;
@@ -205,7 +205,7 @@ class UserServiceTest {
 
             assertEquals("new@example.com", result.getEmail());
             assertEquals("admin", result.getRole());
-            verify(userMapper).updateById(any());
+            verify(userMapper).updateById(any(SysUserEntity.class));
         }
     }
 

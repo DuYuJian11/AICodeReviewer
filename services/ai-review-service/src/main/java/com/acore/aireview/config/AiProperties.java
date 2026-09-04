@@ -31,4 +31,7 @@ public class AiProperties {
 
     /** 请求超时（秒） */
     private int timeoutSeconds = 120;
+
+    /** 是否启用 Mock 模式（本地开发/测试使用，不调用真实 API，返回模拟结果） */
+    private boolean mockEnabled = false;
 }

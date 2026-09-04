@@ -174,7 +174,7 @@ class RepoServiceTest {
             RepoVO result = repoService.updateRepo(1L, 1L, req);
 
             assertEquals("updated-repo", result.getRepoName());
-            verify(repositoryMapper).updateById(any());
+            verify(repositoryMapper).updateById(any(RepositoryEntity.class));
         }
     }
 }

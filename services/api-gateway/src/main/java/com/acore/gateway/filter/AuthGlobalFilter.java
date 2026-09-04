@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -33,6 +34,7 @@ import java.nio.charset.StandardCharsets;
 public class AuthGlobalFilter implements GlobalFilter, Ordered {
 
     private final JwtProperties jwtProperties;
+    private final AntPathMatcher antPathMatcher = new AntPathMatcher();
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -61,9 +63,10 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
                     .getPayload();
 
             // 将用户信息传递到下游服务
+            String username = claims.get("username", String.class);
             ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
                     .header("X-User-Id", claims.getSubject())
-                    .header("X-User-Name", String.valueOf(claims.get("username", "")))
+                    .header("X-User-Name", username == null ? "" : username)
                     .build();
 
             return chain.filter(exchange.mutate().request(mutatedRequest).build());
@@ -80,15 +83,11 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 判断是否为白名单路径
+     * 判断是否为白名单路径（Ant 风格通配符，精确匹配）
      */
     private boolean isWhitelist(String path) {
         return jwtProperties.getWhitelist().stream()
-                .anyMatch(pattern -> {
-                    // 支持 Ant 风格通配，简单处理：移除末尾 ** 并进行前缀匹配
-                    String prefix = pattern.replace("/**", "");
-                    return path.startsWith(prefix);
-                });
+                .anyMatch(pattern -> antPathMatcher.match(pattern, path));
     }
 
     /**

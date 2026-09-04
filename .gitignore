@@ -1,0 +1,50 @@
+# ==================== IDE ====================
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+*.project
+*.classpath
+.factorypath
+
+# ==================== 构建产物 ====================
+target/
+out/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+
+# ==================== 本地配置文件（含敏感信息） ====================
+# 各环境敏感配置通过环境变量注入，禁止提交本地配置
+application-*.local.yml
+application-*.local.yaml
+.env
+.env.*
+*.key
+*.pem
+
+# ==================== 日志 ====================
+logs/
+log/
+*.log
+
+# ==================== 操作系统 ====================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==================== 测试/临时文件 ====================
+*.hprof
+*.pid
+*.orig
+*.rej
+
+# ==================== 依赖缓存 ====================
+node_modules/
+.flattened-pom.xml

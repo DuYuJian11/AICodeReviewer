@@ -4,6 +4,7 @@ import com.acore.aireview.config.AiProperties;
 import com.acore.aireview.dto.ReviewCommentVO;
 import com.acore.aireview.dto.ReviewRequest;
 import com.acore.aireview.dto.ReviewResultResp;
+import com.acore.aireview.entity.AiReviewCommentEntity;
 import com.acore.aireview.repository.AiReviewCommentMapper;
 import com.acore.aireview.service.impl.AiReviewServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +15,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.List;
 
@@ -27,6 +30,7 @@ import static org.mockito.Mockito.*;
  * @author acore
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class AiReviewServiceTest {
 
     @Mock
@@ -40,6 +44,8 @@ class AiReviewServiceTest {
 
     @BeforeEach
     void setUp() {
+        // 单元测试走 Mock 模式，避免真实调用 AI API
+        when(aiProperties.isMockEnabled()).thenReturn(true);
         when(aiProperties.getModel()).thenReturn("deepseek-chat");
         when(aiProperties.getBaseUrl()).thenReturn("https://api.deepseek.com");
         when(aiProperties.getApiKey()).thenReturn("sk-test-key");
@@ -56,13 +62,13 @@ class AiReviewServiceTest {
             request.setPullRequestId(100L);
             request.setDiffContent("public void test() {\n  // TODO: implement\n  System.out.println(\"hello\");\n}");
 
-            when(commentMapper.insert(any())).thenReturn(1);
+            when(commentMapper.insert(any(AiReviewCommentEntity.class))).thenReturn(1);
 
             ReviewResultResp result = aiReviewService.executeReview(request);
 
             assertNotNull(result);
             assertTrue(result.getTotalIssues() > 0);
-            verify(commentMapper, atLeastOnce()).insert(any());
+            verify(commentMapper, atLeastOnce()).insert(any(AiReviewCommentEntity.class));
         }
 
         @Test
@@ -72,7 +78,7 @@ class AiReviewServiceTest {
             request.setPullRequestId(101L);
             request.setDiffContent("System.out.println(\"debug\");");
 
-            when(commentMapper.insert(any())).thenReturn(1);
+            when(commentMapper.insert(any(AiReviewCommentEntity.class))).thenReturn(1);
 
             ReviewResultResp result = aiReviewService.executeReview(request);
 
@@ -87,7 +93,7 @@ class AiReviewServiceTest {
             request.setPullRequestId(102L);
             request.setDiffContent("@Transactional\npublic void save() {}");
 
-            when(commentMapper.insert(any())).thenReturn(1);
+            when(commentMapper.insert(any(AiReviewCommentEntity.class))).thenReturn(1);
 
             ReviewResultResp result = aiReviewService.executeReview(request);
 
@@ -102,7 +108,7 @@ class AiReviewServiceTest {
             request.setPullRequestId(103L);
             request.setDiffContent("public void test() {\n  int a = 1;\n  int b = 2;\n}");
 
-            when(commentMapper.insert(any())).thenReturn(1);
+            when(commentMapper.insert(any(AiReviewCommentEntity.class))).thenReturn(1);
 
             ReviewResultResp result = aiReviewService.executeReview(request);
 
@@ -138,9 +144,9 @@ class AiReviewServiceTest {
         }
     }
 
-    private com.acore.aireview.entity.AiReviewCommentEntity createCommentEntity(
+    private AiReviewCommentEntity createCommentEntity(
             Long id, Long pullRequestId, String severity, String category, String title) {
-        var entity = new com.acore.aireview.entity.AiReviewCommentEntity();
+        var entity = new AiReviewCommentEntity();
         entity.setId(id);
         entity.setPullRequestId(pullRequestId);
         entity.setSeverity(severity);

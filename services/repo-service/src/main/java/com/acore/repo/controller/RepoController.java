@@ -66,7 +66,7 @@ public class RepoController {
     public Result<Void> deleteRepo(@RequestHeader("X-User-Id") Long userId,
                                     @PathVariable Long repoId) {
         repoService.deleteRepo(userId, repoId);
-        return Result.success("删除成功");
+        return Result.success("删除成功", null);
     }
 
     /**

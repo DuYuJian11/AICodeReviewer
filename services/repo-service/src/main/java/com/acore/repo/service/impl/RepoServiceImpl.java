@@ -41,7 +41,7 @@ public class RepoServiceImpl implements RepoService {
 
         // 检查是否已存在
         if (repositoryMapper.existsByRepoUrlAndUserId(req.getRepoUrl(), userId)) {
-            throw new BusinessException(ErrorCode.REPO_NOT_FOUND.getCode(), "该仓库已添加");
+            throw new BusinessException(ErrorCode.REPO_EXISTS);
         }
 
         RepositoryEntity entity = new RepositoryEntity();

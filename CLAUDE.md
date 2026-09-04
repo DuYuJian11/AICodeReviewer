@@ -90,9 +90,34 @@
 
 ---
 
+## 实现现状（重要）
+
+> 开发时以此边界为准，避免对未实现功能产生预期。
+
+| 模块 | 现状 |
+|------|------|
+| 用户认证（注册/登录/JWT/刷新） | ✅ 已实现（BCrypt 加密 + JJWT） |
+| 仓库 CRUD | ✅ 已实现 |
+| GitHub/GitLab OAuth 授权 | ⚠️ 待实现（接口占位，抛出「OAuth 流程待实现」） |
+| PR/MR 信息同步 | ⚠️ 模拟（`syncPullRequest` 返回 mock 数据） |
+| SonarQube 静态扫描 | ⚠️ 模拟（`executeScan` 生成随机数据，未调用 SonarQube API） |
+| AI 代码审查 | ✅ 已接入 DeepSeek API（OpenAI 兼容协议）；可用 `ai.mock-enabled=true` 切换 Mock 模式 |
+| 报告生成 | ✅ 已实现，通过 OpenFeign 聚合 scanner-service 与 ai-review-service 的真实数据 |
+| 通知（邮件/钉钉/企业微信） | ✅ 已实现（SMTP / Webhook 推送） |
+| RabbitMQ 任务队列（`review_task` 表） | ❌ 未落地（依赖已引入，无消费者/生产者，表已建但无代码读写） |
+| WebSocket 实时推送 | ✅ 已实现（报告生成进度推送） |
+
+### 服务间调用约定
+
+- 服务间通过 **Spring Cloud OpenFeign** 调用；当前仅 report-service 聚合了 scanner-service 与 ai-review-service。
+- Feign 契约 DTO 定义在调用方服务内（如 `com.acore.report.client` / `com.acore.report.dto`），未放入 shared 模块。
+- 调用路径走各服务自身 Controller 路由（不经网关），服务名通过 Eureka 发现（`lb://`）。
+
+---
+
 ## 数据库设计
 
-### 核心表清单（6 张表）
+### 核心表清单（8 张表，以 `docker/mysql/init/init.sql` 为准）
 
 | 表名 | 说明 | 核心字段 |
 |------|------|----------|
@@ -101,7 +126,9 @@
 | `pull_request` | PR/MR 信息表 | id, repository_id, pr_number, title, description, branch_from, branch_to, commit_sha, author, status, created_at |
 | `scan_result` | 静态扫描结果表 | id, pull_request_id, scanner_type, bugs, vulnerabilities, code_smells, coverage, quality_gate_passed, report_url, created_at |
 | `ai_review_comment` | AI 审查评论表 | id, pull_request_id, file_path, line_start, line_end, severity, category, title, description, suggestion, model, created_at |
-| `review_task` | 审查任务队列表 | id, pull_request_id, task_type(scan/ai_review/report/notification), status(pending/running/completed/failed), retry_count, max_retries, result, error_message, created_at, updated_at |
+| `review_task` | 审查任务队列表（预留，尚未有代码读写） | id, pull_request_id, task_type(scan/ai_review/report/notification), status(pending/running/completed/failed), retry_count, max_retries, result, error_message, created_at, updated_at |
+| `notification_record` | 通知记录表 | id, pull_request_id, notify_type, receiver, title, content, status, error_message, created_at, updated_at |
+| `review_report` | 审查报告表 | id, pull_request_id, title, summary, scan_result_id, scan_summary, ai_comment_count, critical_count, major_count, minor_count, quality_gate_passed, conclusion, status, created_at, updated_at |
 
 ---
 
@@ -115,10 +142,10 @@ D:/MYproject/
 │   ├── pom.xml
 │   └── src/main/java/com/acore/shared/
 │       ├── dto/                  # 公共 DTO（统一响应体 Result<T> 等）
-│       ├── exception/            # 公共异常定义
+│       ├── exception/            # 公共异常定义（ErrorCode、BusinessException、GlobalExceptionHandler）
 │       ├── util/                 # 工具类
-│       ├── constant/             # 常量定义
-│       └── config/               # 公共配置（Jackson、Feign 等）
+│       └── constant/             # 常量定义
+│       # 注：跨服务调用 DTO 目前直接定义在调用方服务内（如 report-service 的 Feign 契约 DTO）
 ├── services/
 │   ├── discovery-server/         # 注册中心（8761）
 │   │   ├── pom.xml
@@ -164,9 +191,7 @@ services/xxx-service/
     │   │   ├── config/           # 服务配置类
     │   │   └── handler/          # 全局异常处理器等
     │   └── resources/
-    │       ├── application.yml
-    │       ├── application-dev.yml
-    │       └── bootstrap.yml
+    │       └── application.yml   # 目前各服务仅一份配置文件；按环境拆分（application-dev/prod）为待办事项
     └── test/
         └── java/com/acore/<servicename>/
             ├── controller/
@@ -214,7 +239,7 @@ services/xxx-service/
 ## 测试要求
 
 - **所有服务必须包含完整的单元测试**，使用 JUnit 5 + Mockito
-- 测试覆盖率目标：
+- 测试覆盖率目标（**当前尚未引入 jacoco，覆盖率未度量**，此为待办目标）：
   - 核心业务逻辑（Service 层）：> 80%
   - 整体项目：≥ 60%
 - 测试文件命名：`*Test.java`（如 `UserServiceTest.java`）
@@ -290,7 +315,8 @@ mvn spring-boot:run -pl services/user-service
 mvn clean install -pl shared
 
 # Docker 启动基础设施
-docker compose up -d mysql redis rabbitmq sonarqube
+# 注：docker-compose.yml 当前仅包含 MySQL / Redis / RabbitMQ，SonarQube 需单独部署（默认端口 9000）
+docker compose up -d mysql redis rabbitmq
 ```
 
 ---

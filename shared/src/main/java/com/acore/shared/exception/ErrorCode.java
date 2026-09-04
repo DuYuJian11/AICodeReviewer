@@ -34,6 +34,7 @@ public enum ErrorCode {
     // ==================== 仓库（3000-3999） ====================
 
     REPO_NOT_FOUND(3000, "仓库不存在"),
+    REPO_EXISTS(3005, "仓库已存在"),
     REPO_OAUTH_FAILED(3001, "仓库 OAuth 授权失败"),
     REPO_WEBHOOK_FAILED(3002, "Webhook 注册失败"),
     PR_NOT_FOUND(3003, "PR/MR 不存在"),

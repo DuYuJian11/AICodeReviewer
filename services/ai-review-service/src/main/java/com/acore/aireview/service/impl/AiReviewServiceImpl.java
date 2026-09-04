@@ -1,7 +1,9 @@
 package com.acore.aireview.service.impl;
 
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.acore.shared.exception.BusinessException;
 import com.acore.shared.exception.ErrorCode;
 import com.acore.aireview.config.AiProperties;
@@ -20,7 +22,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * AI 审查服务实现
@@ -38,8 +39,9 @@ public class AiReviewServiceImpl implements AiReviewService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ReviewResultResp executeReview(ReviewRequest request) {
-        log.info("执行 AI 审查: pullRequestId={}, files={} chars",
-                request.getPullRequestId(), request.getDiffContent().length());
+        int diffLength = request.getDiffContent() == null ? 0 : request.getDiffContent().length();
+        log.info("执行 AI 审查: pullRequestId={}, diffLength={} chars",
+                request.getPullRequestId(), diffLength);
 
         // 调用 AI API 获取审查结果
         List<ReviewCommentVO> comments = callAiApi(request);
@@ -113,9 +115,15 @@ public class AiReviewServiceImpl implements AiReviewService {
     /**
      * 调用 AI API 进行代码审查
      *
-     * <p>优先使用 DeepSeek API，可切换为 OpenAI API。</p>
+     * <p>默认调用 DeepSeek API（兼容 OpenAI Chat Completions 协议）。可通过配置 ai.mock-enabled=true 开启 Mock 模式。</p>
      */
     private List<ReviewCommentVO> callAiApi(ReviewRequest request) {
+        // Mock 模式：返回模拟结果，便于本地开发/测试
+        if (aiProperties.isMockEnabled()) {
+            log.warn("AI 审查处于 Mock 模式，返回模拟结果");
+            return parseMockResponse(request.getDiffContent());
+        }
+
         try {
             WebClient client = WebClient.builder()
                     .baseUrl(aiProperties.getBaseUrl())
@@ -127,34 +135,82 @@ public class AiReviewServiceImpl implements AiReviewService {
             JSONObject requestBody = new JSONObject();
             requestBody.set("model", aiProperties.getModel());
             requestBody.set("max_tokens", aiProperties.getMaxTokens());
+            requestBody.set("temperature", 0.2);
 
             JSONArray messages = new JSONArray();
             messages.add(new JSONObject()
                     .set("role", "system")
                     .set("content", "你是一位资深的代码审查专家。请严格审查以下代码变更，找出潜在问题。" +
-                            "请以 JSON 数组格式返回结果，每个元素包含：filePath, lineStart, lineEnd, severity(critical/major/minor/info), " +
+                            "请仅以 JSON 数组格式返回结果（不要包含任何多余文字或 Markdown 代码块标记），" +
+                            "每个元素包含：filePath, lineStart, lineEnd, severity(critical/major/minor/info), " +
                             "category(bug/vulnerability/code_smell/style/performance), title, description, suggestion。"));
             messages.add(new JSONObject()
                     .set("role", "user")
                     .set("content", prompt));
             requestBody.set("messages", messages);
 
-            // 实际项目中会调用真实 API
-            // 此处模拟返回结果，避免真实 API 调用
-            // String response = client.post()
-            //         .uri("/chat/completions")
-            //         .bodyValue(requestBody)
-            //         .retrieve()
-            //         .bodyToMono(String.class)
-            //         .timeout(Duration.ofSeconds(aiProperties.getTimeoutSeconds()))
-            //         .block();
+            String response = client.post()
+                    .uri("/chat/completions")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(aiProperties.getTimeoutSeconds()))
+                    .block();
 
-            return parseMockResponse(request.getDiffContent());
+            return parseAiResponse(response);
 
         } catch (Exception e) {
-            log.error("AI API 调用失败: {}", e.getMessage());
+            log.error("AI API 调用失败: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.AI_API_CALL_FAILED, e.getMessage());
         }
+    }
+
+    /**
+     * 解析 DeepSeek / OpenAI Chat Completions 格式的响应
+     *
+     * <p>模型输出的 content 为一个 JSON 数组字符串，本方法将其转换为评论列表。</p>
+     */
+    private List<ReviewCommentVO> parseAiResponse(String response) {
+        if (StrUtil.isBlank(response)) {
+            throw new BusinessException(ErrorCode.AI_API_CALL_FAILED, "AI API 返回空响应");
+        }
+
+        JSONObject body = JSONUtil.parseObj(response);
+        JSONArray choices = body.getJSONArray("choices");
+        if (choices == null || choices.isEmpty()) {
+            throw new BusinessException(ErrorCode.AI_API_CALL_FAILED, "AI API 响应中无审查结果");
+        }
+
+        String content = choices.getJSONObject(0)
+                .getJSONObject("message")
+                .getStr("content");
+        if (StrUtil.isBlank(content)) {
+            return new ArrayList<>();
+        }
+
+        // 清理 Markdown 代码围栏（部分模型会返回 ```json ... ```）
+        content = content.trim();
+        if (content.startsWith("```")) {
+            content = content.replaceAll("^```[a-zA-Z]*\\n?", "").replaceAll("\\n?```$", "");
+        }
+
+        JSONArray commentArr = JSONUtil.parseArray(content);
+        List<ReviewCommentVO> comments = new ArrayList<>();
+        for (Object obj : commentArr) {
+            JSONObject json = (JSONObject) obj;
+            comments.add(ReviewCommentVO.builder()
+                    .filePath(json.getStr("filePath"))
+                    .lineStart(json.getInt("lineStart"))
+                    .lineEnd(json.getInt("lineEnd"))
+                    .severity(json.getStr("severity", "info"))
+                    .category(json.getStr("category"))
+                    .title(json.getStr("title"))
+                    .description(json.getStr("description"))
+                    .suggestion(json.getStr("suggestion"))
+                    .model(aiProperties.getModel())
+                    .build());
+        }
+        return comments;
     }
 
     /**
@@ -162,9 +218,10 @@ public class AiReviewServiceImpl implements AiReviewService {
      */
     private String buildPrompt(String diffContent) {
         // 控制 Prompt 长度，避免 Token 超限
-        String truncatedDiff = diffContent.length() > 30000
-                ? diffContent.substring(0, 30000) + "\n... (超出部分已截断)"
-                : diffContent;
+        String safeDiff = diffContent == null ? "" : diffContent;
+        String truncatedDiff = safeDiff.length() > 30000
+                ? safeDiff.substring(0, 30000) + "\n... (超出部分已截断)"
+                : safeDiff;
         return "请审查以下代码变更：\n```diff\n" + truncatedDiff + "\n```";
     }
 
@@ -173,8 +230,9 @@ public class AiReviewServiceImpl implements AiReviewService {
      */
     private List<ReviewCommentVO> parseMockResponse(String diffContent) {
         List<ReviewCommentVO> comments = new ArrayList<>();
+        String safeDiff = diffContent == null ? "" : diffContent;
         // 模拟一些评论
-        if (diffContent.contains("TODO")) {
+        if (safeDiff.contains("TODO")) {
             comments.add(ReviewCommentVO.builder()
                     .filePath("src/main/java/com/example/Service.java")
                     .lineStart(10)
@@ -187,7 +245,7 @@ public class AiReviewServiceImpl implements AiReviewService {
                     .model(aiProperties.getModel())
                     .build());
         }
-        if (diffContent.contains("System.out")) {
+        if (safeDiff.contains("System.out")) {
             comments.add(ReviewCommentVO.builder()
                     .filePath("src/main/java/com/example/Controller.java")
                     .lineStart(5)
@@ -200,7 +258,7 @@ public class AiReviewServiceImpl implements AiReviewService {
                     .model(aiProperties.getModel())
                     .build());
         }
-        if (diffContent.contains("@Transactional")) {
+        if (safeDiff.contains("@Transactional")) {
             comments.add(ReviewCommentVO.builder()
                     .filePath("src/main/java/com/example/Service.java")
                     .lineStart(15)
