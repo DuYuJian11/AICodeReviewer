@@ -107,7 +107,7 @@ class RepoServiceTest {
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> repoService.addRepo(1L, req));
-            assertEquals(400, ex.getCode());
+            assertEquals(ErrorCode.REPO_EXISTS.getCode(), ex.getCode());
         }
     }
 

@@ -54,8 +54,6 @@ class ScanServiceTest {
         mockResult.setCoverage(85.5);
         mockResult.setQualityGatePassed(true);
         mockResult.setReportUrl("http://localhost:9000/dashboard?id=com.acore:pr-100");
-
-        when(sonarQubeProperties.getHost()).thenReturn("http://localhost:9000");
     }
 
     @Nested
@@ -70,6 +68,7 @@ class ScanServiceTest {
             request.setRepoUrl("https://github.com/test/test-repo");
             request.setBranch("main");
 
+            when(sonarQubeProperties.getHost()).thenReturn("http://localhost:9000");
             when(scanResultMapper.insert(any(ScanResultEntity.class))).thenAnswer(invocation -> {
                 ScanResultEntity entity = invocation.getArgument(0);
                 entity.setId(1L);
